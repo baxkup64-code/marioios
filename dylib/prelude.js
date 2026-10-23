@@ -33,7 +33,29 @@
     findExportByName: (mod, name) => N.dlsym(name),
     getGlobalExportByName: (name) => { const p = N.dlsym(name); if (p === null) throw new Error("unable to find global export: " + name); return p; },
   };
-  G.File = { readAllText: (p) => N.readFile(p) };
+  // Frida-File: new File(path, "w"|"a") + write/flush/close (ohne dieses ging Speichern ohne JIT nie: "File is not a constructor")
+  class File {
+    constructor(path, mode) {
+      this._p = String(path); this._m = String(mode || "r"); this._buf = []; this._open = false; this._closed = false;
+      if (this._m[0] !== "w" && this._m[0] !== "a") throw new Error("File: nur Modus w/a unterstuetzt, Lesen ueber File.readAllText");
+    }
+    write(data) {
+      if (this._closed) throw new Error("File ist geschlossen");
+      this._buf.push(typeof data === "string" ? data : String.fromCharCode.apply(null, Array.from(new Uint8Array(data))));
+      return this;
+    }
+    flush() {
+      if (this._closed) return;
+      const txt = this._buf.join(""); this._buf = [];
+      if (this._m[0] === "w" && !this._open) N.writeFile(this._p, txt, false);   // erstes Schreiben: Datei neu anlegen/ersetzen
+      else if (txt.length) N.writeFile(this._p, txt, true);
+      this._open = true;
+    }
+    close() { if (this._closed) return; this.flush(); this._closed = true; }
+    static readAllText(p) { return N.readFile(String(p)); }
+    static writeAllText(p, t) { N.writeFile(String(p), String(t), false); }
+  }
+  G.File = File;
   G.Frida = { version: "kitmod-qjs", heapSize: 0 };
   G.Script = { runtime: "QJS" };
 
