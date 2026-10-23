@@ -13,7 +13,7 @@ export {};
 // ============================================================
 const ACT_CFG = {
     BOT: "PSCv2Bot",                  // Telegram-Bot ohne @ (ein fuehrendes @ wird im Code zusaetzlich entfernt)
-    API: "https://leadership-athens-bookmark-children.trycloudflare.com/api",  // HTTPS (iOS blockt http), ohne / am Ende
+    API: "https://dimmer-capable-gush.ngrok-free.dev/api",  // HTTPS (iOS blockt http), ohne / am Ende
     PUBKEY: "6bd10277d17dd69b375b841c2f60c7851e32f0a8925b4c31772397a8037501b0", // Ed25519-Public-Key des Servers (hex)
     PRODUCT: "kitmod-ios",
     VERSION: 1,                               // Client-Version (Server kann mit minVersion alte Versionen sperren)
