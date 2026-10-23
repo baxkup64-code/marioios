@@ -26,6 +26,7 @@ jobs:
 
       - name: Abhängigkeiten installieren
         run: |
+          set -e
           pip install lief capstone
           npm install -g esbuild
 
@@ -34,7 +35,10 @@ jobs:
           set -e
           test -f input/Brawl_Stars.zip || { echo "FEHLER: input/Brawl_Stars.zip fehlt"; exit 1; }
           unzip -o input/Brawl_Stars.zip -d input
-          test -f input/Brawl_Stars || { echo "FEHLER: im ZIP muss die Datei 'Brawl_Stars' liegen"; exit 1; }
+          if [ -f "input/Brawl Stars" ]; then
+            mv "input/Brawl Stars" input/Brawl_Stars
+          fi
+          test -f input/Brawl_Stars || { echo "FEHLER: weder 'Brawl Stars' noch 'Brawl_Stars' im ZIP"; ls -la input; exit 1; }
           file input/Brawl_Stars
 
       - name: Binary patchen
@@ -50,11 +54,13 @@ jobs:
           make 2>&1 | tee ../out/make.log
           cp kitmod.dylib ../out/kitmod.dylib
 
-      - name: Ergebnis prüfen
+      - name: Ergebnis vorbereiten
         run: |
+          set -e
+          cp out/Brawl_Stars_patched "out/Brawl Stars"
           ls -la out
-          file out/kitmod.dylib out/Brawl_Stars_patched
-          otool -l out/Brawl_Stars_patched | grep -A4 "__KMTEXT\|__KMDATA" || true
+          file out/kitmod.dylib "out/Brawl Stars"
+          otool -l "out/Brawl Stars" | grep -A4 "__KMTEXT\|__KMDATA" || true
 
       - name: Artefakte hochladen
         if: always()
