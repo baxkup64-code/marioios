@@ -1,0 +1,17 @@
+{
+  "_comment": "RVAs wie in debug_ios.ts (IDA-Adresse minus 0x100000000). Nur Stellen, die das Skript wirklich per Interceptor.attach hookt und die nicht in BLOCK_HOOKS stehen. Der Rest (SetXY, AddChildAt, ButtonPressed, 0x95dec, 0xc8c40, 0x231ba4, 0x2343ac) bleibt wie im Skript ungehookt. Hook auf nicht eingetragene RVA: Laufzeit loggt 'nicht vorgepatcht' und ueberspringt.",
+  "hooks": [
+    {"name": "TouchBegan",     "rva": "0x08f3fc"},
+    {"name": "TouchMoved",     "rva": "0x08f478"},
+    {"name": "TouchEnded",     "rva": "0x08f464"},
+    {"name": "GameButtonCtor", "rva": "0x08eea0"},
+    {"name": "SpriteAddChild", "rva": "0x17f9db8"},
+    {"name": "SetText",        "rva": "0x181685c"},
+    {"name": "DodgePredict",   "rva": "0x3a66e4"},
+    {"name": "DodgeAddInput",  "rva": "0x1ac9e8"},
+    {"name": "DodgeFrameHook", "rva": "0x1e9430"},
+    {"name": "HomeEnter",      "rva": "0x1f6810"},
+    {"name": "ChatSender",     "rva": "0x0c1a64"},
+    {"name": "SgSettingsCtor", "rva": "0x2a81b8"}
+  ]
+}
