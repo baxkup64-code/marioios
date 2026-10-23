@@ -288,6 +288,29 @@ static JSValue n_readfile(JSContext *c, JSValueConst t, int argc, JSValueConst *
     char *b = malloc(n + 1); size_t r = fread(b, 1, n, f); fclose(f);
     JSValue v = JS_NewStringLen(c, b, r); free(b); return v;
 }
+static JSValue n_writefile(JSContext *c, JSValueConst t, int argc, JSValueConst *argv) {   // __n.writeFile(path, text, append)
+    const char *path = JS_ToCString(c, argv[0]); if (!path) return JS_EXCEPTION;
+    size_t len = 0; const char *data = JS_ToCStringLen(c, &len, argv[1]);
+    if (!data) { JS_FreeCString(c, path); return JS_EXCEPTION; }
+    int append = argc > 2 && JS_ToBool(c, argv[2]) > 0;
+    JSValue ret = JS_TRUE;
+    if (append) {
+        FILE *f = fopen(path, "ab");
+        if (!f || (len && fwrite(data, 1, len, f) != len)) ret = JS_ThrowPlainError(c, "Datei nicht schreibbar: %s (errno %d)", path, errno);
+        if (f) { fflush(f); fsync(fileno(f)); fclose(f); }
+    } else {   // atomar: erst in .tmp schreiben, dann umbenennen -> nie eine halbe/leere Datei bei Absturz
+        char tmp[1100]; snprintf(tmp, sizeof tmp, "%s.tmp", path);
+        FILE *f = fopen(tmp, "wb");
+        if (!f) ret = JS_ThrowPlainError(c, "Datei nicht schreibbar: %s (errno %d)", tmp, errno);
+        else {
+            int bad = (len && fwrite(data, 1, len, f) != len);
+            fflush(f); fsync(fileno(f)); if (fclose(f) != 0) bad = 1;
+            if (bad || rename(tmp, path) != 0) { ret = JS_ThrowPlainError(c, "Datei nicht schreibbar: %s (errno %d)", path, errno); unlink(tmp); }
+        }
+    }
+    JS_FreeCString(c, data); JS_FreeCString(c, path);
+    return ret;
+}
 static JSValue n_log(JSContext *c, JSValueConst t, int argc, JSValueConst *argv) {
     const char *s = JS_ToCString(c, argv[0]); if (s) { km_log(s); JS_FreeCString(c, s); } return JS_UNDEFINED;
 }
@@ -567,7 +590,7 @@ static int init_runtime(const char *prelude, size_t plen, const char *script, si
     JSValue N = JS_NewObject(ctx);
 #define NAT(name, n, fn) JS_SetPropertyStr(ctx, N, name, JS_NewCFunction(ctx, fn, name, n))
     NAT("alloc", 1, n_alloc); NAT("allocUtf8", 1, n_alloc_utf8); NAT("copy", 3, n_copy); NAT("range", 1, n_range); NAT("dlsym", 1, n_dlsym);
-    NAT("readFile", 1, n_readfile); NAT("log", 1, n_log); NAT("base", 0, n_base); NAT("hookIndex", 1, n_hookindex);
+    NAT("readFile", 1, n_readfile); NAT("writeFile", 3, n_writefile); NAT("log", 1, n_log); NAT("base", 0, n_base); NAT("hookIndex", 1, n_hookindex);
     NAT("regGet", 2, n_regget); NAT("regSet", 3, n_regset); NAT("nfn", 3, n_nfn); NAT("ncb", 3, n_ncb);
     NAT("tmSet", 3, n_tmset); NAT("tmClear", 1, n_tmclear);
     JS_SetPropertyStr(ctx, G, "__n", N);
