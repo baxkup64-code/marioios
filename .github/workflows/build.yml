@@ -25,14 +25,25 @@ jobs:
           python-version: "3.11"
 
       - name: Abhängigkeiten installieren
+        shell: bash
         run: |
-          set -e
+          set -eo pipefail
           pip install lief capstone
           npm install -g esbuild
 
-      - name: Binary entpacken
+      - name: Struktur prüfen
+        shell: bash
         run: |
-          set -e
+          set -eo pipefail
+          for f in tools/build_hooks.py hooks.json debug_ios.ts dylib/km_runtime.c dylib/prelude.js dylib/Makefile; do
+            test -f "$f" || { echo "FEHLER: $f fehlt im Repo"; echo "--- vorhandene Dateien ---"; find . -path ./.git -prune -o -type f -print | head -100; exit 1; }
+          done
+          echo "Struktur ok"
+
+      - name: Binary entpacken
+        shell: bash
+        run: |
+          set -eo pipefail
           test -f input/Brawl_Stars.zip || { echo "FEHLER: input/Brawl_Stars.zip fehlt"; exit 1; }
           unzip -o input/Brawl_Stars.zip -d input
           if [ -f "input/Brawl Stars" ]; then
@@ -42,21 +53,28 @@ jobs:
           file input/Brawl_Stars
 
       - name: Binary patchen
+        shell: bash
         run: |
-          set -e
+          set -eo pipefail
           mkdir -p out
           python3 tools/build_hooks.py input/Brawl_Stars hooks.json out/Brawl_Stars_patched dylib/ 2>&1 | tee out/build_hooks.log
+          test -f dylib/kitmod_gen.h || { echo "FEHLER: kitmod_gen.h wurde nicht erzeugt"; exit 1; }
+          test -f dylib/kitmod_tramp.S || { echo "FEHLER: kitmod_tramp.S wurde nicht erzeugt"; exit 1; }
+          test -f out/Brawl_Stars_patched || { echo "FEHLER: gepatchte Binary wurde nicht erzeugt"; exit 1; }
 
       - name: Dylib bauen
+        shell: bash
         run: |
-          set -e
+          set -eo pipefail
           cd dylib
           make 2>&1 | tee ../out/make.log
+          test -f kitmod.dylib || { echo "FEHLER: kitmod.dylib wurde nicht erzeugt"; exit 1; }
           cp kitmod.dylib ../out/kitmod.dylib
 
       - name: Ergebnis vorbereiten
+        shell: bash
         run: |
-          set -e
+          set -eo pipefail
           cp out/Brawl_Stars_patched "out/Brawl Stars"
           ls -la out
           file out/kitmod.dylib "out/Brawl Stars"
