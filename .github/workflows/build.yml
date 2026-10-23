@@ -1,0 +1,65 @@
+name: build-kitmod
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Node einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Abhängigkeiten installieren
+        run: |
+          pip install lief capstone
+          npm install -g esbuild
+
+      - name: Binary entpacken
+        run: |
+          set -e
+          test -f input/Brawl_Stars.zip || { echo "FEHLER: input/Brawl_Stars.zip fehlt"; exit 1; }
+          unzip -o input/Brawl_Stars.zip -d input
+          test -f input/Brawl_Stars || { echo "FEHLER: im ZIP muss die Datei 'Brawl_Stars' liegen"; exit 1; }
+          file input/Brawl_Stars
+
+      - name: Binary patchen
+        run: |
+          set -e
+          mkdir -p out
+          python3 tools/build_hooks.py input/Brawl_Stars hooks.json out/Brawl_Stars_patched dylib/ 2>&1 | tee out/build_hooks.log
+
+      - name: Dylib bauen
+        run: |
+          set -e
+          cd dylib
+          make 2>&1 | tee ../out/make.log
+          cp kitmod.dylib ../out/kitmod.dylib
+
+      - name: Ergebnis prüfen
+        run: |
+          ls -la out
+          file out/kitmod.dylib out/Brawl_Stars_patched
+          otool -l out/Brawl_Stars_patched | grep -A4 "__KMTEXT\|__KMDATA" || true
+
+      - name: Artefakte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kitmod-build
+          path: out/
+          if-no-files-found: warn
